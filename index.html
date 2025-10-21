@@ -9,6 +9,8 @@
 <p>Beta (X): <span id="beta"></span></p>
 <p>Gamma (Y): <span id="gamma"></span></p>
 
+<button onclick="vibratePhone()">Wibruj</button>
+
 <script>
   if (window.DeviceOrientationEvent) {
     window.addEventListener("deviceorientation", function(event) {
@@ -18,6 +20,14 @@
     }, true);
   } else {
     document.body.innerHTML += "<p>Twoje urządzenie nie wspiera DeviceOrientation API.</p>";
+  }
+
+  function vibratePhone() {
+    if (navigator.vibrate) {
+      navigator.vibrate(200); // wibruje przez 200 ms
+    } else {
+      alert("Twoje urządzenie nie wspiera wibracji.");
+    }
   }
 </script>
 </body>
