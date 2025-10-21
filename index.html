@@ -1,42 +1,24 @@
 <!DOCTYPE html>
 <html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
 <body>
-<h2>Moja lokalizacja</h2>
-<button onclick="getLocation()">Pokaż moją szerokość i długość geograficzną</button>
-<p id="location"></p>
+<h2>Obrót urządzenia (alfa, beta, gamma)</h2>
+<p>Alfa (Z): <span id="alpha"></span></p>
+<p>Beta (X): <span id="beta"></span></p>
+<p>Gamma (Y): <span id="gamma"></span></p>
 
 <script>
-function getLocation() {
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(showPosition, showError);
+  if (window.DeviceOrientationEvent) {
+    window.addEventListener("deviceorientation", function(event) {
+      document.getElementById("alpha").textContent = event.alpha ? event.alpha.toFixed(2) : "brak";
+      document.getElementById("beta").textContent = event.beta ? event.beta.toFixed(2) : "brak";
+      document.getElementById("gamma").textContent = event.gamma ? event.gamma.toFixed(2) : "brak";
+    }, true);
   } else {
-    document.getElementById("location").innerHTML = "Geolokalizacja nie jest wspierana przez przeglądarkę.";
+    document.body.innerHTML += "<p>Twoje urządzenie nie wspiera DeviceOrientation API.</p>";
   }
-}
-
-function showPosition(position) {
-  document.getElementById("location").innerHTML = 
-    "Szerokość: " + position.coords.latitude + 
-    "<br>Długość: " + position.coords.longitude;
-}
-
-function showError(error) {
-  switch(error.code) {
-    case error.PERMISSION_DENIED:
-      alert("Brak zgody na udostępnienie lokalizacji.");
-      break;
-    case error.POSITION_UNAVAILABLE:
-      alert("Dane o lokalizacji niedostępne.");
-      break;
-    case error.TIMEOUT:
-      alert("Przekroczono limit czasu żądania lokalizacji.");
-      break;
-    case error.UNKNOWN_ERROR:
-      alert("Nieznany błąd.");
-      break;
-  }
-}
 </script>
-
 </body>
 </html>
