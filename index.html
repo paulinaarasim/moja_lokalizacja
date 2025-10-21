@@ -2,6 +2,7 @@
 <html>
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prezentacja Fullscreen i Orientacja</title>
 </head>
 <body>
 <h2>Obrót urządzenia (alfa, beta, gamma)</h2>
@@ -10,8 +11,10 @@
 <p>Gamma (Y): <span id="gamma"></span></p>
 
 <button onclick="vibratePhone()">Wibruj</button>
+<button onclick="togglePresentationMode()">Tryb prezentacji</button>
 
 <script>
+  // Wyświetlanie alfa, beta, gamma
   if (window.DeviceOrientationEvent) {
     window.addEventListener("deviceorientation", function(event) {
       document.getElementById("alpha").textContent = event.alpha ? event.alpha.toFixed(2) : "brak";
@@ -22,6 +25,7 @@
     document.body.innerHTML += "<p>Twoje urządzenie nie wspiera DeviceOrientation API.</p>";
   }
 
+  // Funkcja wibracji telefonu
   function vibratePhone() {
     if (navigator.vibrate) {
       navigator.vibrate(200); // wibruje przez 200 ms
@@ -29,6 +33,35 @@
       alert("Twoje urządzenie nie wspiera wibracji.");
     }
   }
+
+  // Funkcja trybu prezentacji: fullscreen + orientacja landscape
+  async function togglePresentationMode() {
+    try {
+      // Wejdź w fullscreen
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      }
+
+      // Zablokuj orientację na landscape
+      if (screen.orientation && screen.orientation.lock) {
+        await screen.orientation.lock("landscape");
+      } else {
+        alert("Twoja przeglądarka nie wspiera blokady orientacji.");
+      }
+    } catch (error) {
+      alert("Błąd z trybem prezentacji: " + error.message);
+    }
+  }
+
+  // Anuluj blokadę orientacji i fullscreen przy wyjściu
+  document.addEventListener('fullscreenchange', () => {
+    if (!document.fullscreenElement) {
+      if (screen.orientation && screen.orientation.unlock) {
+        screen.orientation.unlock();
+      }
+    }
+  });
 </script>
+
 </body>
 </html>
