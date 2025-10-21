@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<body>
+<h2>Moja lokalizacja</h2>
+<button onclick="getLocation()">Pokaż moją szerokość i długość geograficzną</button>
+<p id="location"></p>
+
+<script>
+function getLocation() {
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(showPosition, showError);
+  } else {
+    document.getElementById("location").innerHTML = "Geolokalizacja nie jest wspierana przez przeglądarkę.";
+  }
+}
+
+function showPosition(position) {
+  document.getElementById("location").innerHTML = 
+    "Szerokość: " + position.coords.latitude + 
+    "<br>Długość: " + position.coords.longitude;
+}
+
+function showError(error) {
+  switch(error.code) {
+    case error.PERMISSION_DENIED:
+      alert("Brak zgody na udostępnienie lokalizacji.");
+      break;
+    case error.POSITION_UNAVAILABLE:
+      alert("Dane o lokalizacji niedostępne.");
+      break;
+    case error.TIMEOUT:
+      alert("Przekroczono limit czasu żądania lokalizacji.");
+      break;
+    case error.UNKNOWN_ERROR:
+      alert("Nieznany błąd.");
+      break;
+  }
+}
+</script>
+
+</body>
+</html>
