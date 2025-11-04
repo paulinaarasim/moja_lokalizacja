@@ -1,67 +1,33 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Prezentacja Fullscreen i Orientacja</title>
+  <meta charset="utf-8" />
+  <title>Podgląd kamery</title>
+  <style>
+    video {
+      width: 100%;
+      max-width: 400px;
+      height: auto;
+      border: 2px solid black;
+      border-radius: 8px;
+    }
+  </style>
 </head>
 <body>
-<h2>Obrót urządzenia (alfa, beta, gamma)</h2>
-<p>Alfa (Z): <span id="alpha"></span></p>
-<p>Beta (X): <span id="beta"></span></p>
-<p>Gamma (Y): <span id="gamma"></span></p>
+  <h2>Twój podgląd z kamerki</h2>
+  <video id="video" autoplay playsinline></video>
 
-<button onclick="vibratePhone()">Wibruj</button>
-<button onclick="togglePresentationMode()">Tryb prezentacji</button>
+  <script>
+    const video = document.getElementById('video');
 
-<script>
-  // Wyświetlanie alfa, beta, gamma
-  if (window.DeviceOrientationEvent) {
-    window.addEventListener("deviceorientation", function(event) {
-      document.getElementById("alpha").textContent = event.alpha ? event.alpha.toFixed(2) : "brak";
-      document.getElementById("beta").textContent = event.beta ? event.beta.toFixed(2) : "brak";
-      document.getElementById("gamma").textContent = event.gamma ? event.gamma.toFixed(2) : "brak";
-    }, true);
-  } else {
-    document.body.innerHTML += "<p>Twoje urządzenie nie wspiera DeviceOrientation API.</p>";
-  }
-
-  // Funkcja wibracji telefonu
-  function vibratePhone() {
-    if (navigator.vibrate) {
-      navigator.vibrate(200); // wibruje przez 200 ms
-    } else {
-      alert("Twoje urządzenie nie wspiera wibracji.");
-    }
-  }
-
-  // Funkcja trybu prezentacji: fullscreen + orientacja landscape
-  async function togglePresentationMode() {
-    try {
-      // Wejdź w fullscreen
-      if (!document.fullscreenElement) {
-        await document.documentElement.requestFullscreen();
-      }
-
-      // Zablokuj orientację na landscape
-      if (screen.orientation && screen.orientation.lock) {
-        await screen.orientation.lock("landscape");
-      } else {
-        alert("Twoja przeglądarka nie wspiera blokady orientacji.");
-      }
-    } catch (error) {
-      alert("Błąd z trybem prezentacji: " + error.message);
-    }
-  }
-
-  // Anuluj blokadę orientacji i fullscreen przy wyjściu
-  document.addEventListener('fullscreenchange', () => {
-    if (!document.fullscreenElement) {
-      if (screen.orientation && screen.orientation.unlock) {
-        screen.orientation.unlock();
-      }
-    }
-  });
-</script>
-
+    // Prosi o dostęp do kamery i wyświetla stream video
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => {
+        video.srcObject = stream;
+      })
+      .catch(err => {
+        alert("Brak dostępu do kamery lub błąd: " + err.message);
+      });
+  </script>
 </body>
 </html>
