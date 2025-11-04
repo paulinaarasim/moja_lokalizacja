@@ -2,36 +2,36 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Odczyt NFC</title>
+  <title>Odczyt NFC z przyciskiem</title>
   <style>
     body { font-family: Arial, sans-serif; padding: 20px; }
     .output { font-size: 1.5em; margin-top: 20px; }
+    button { font-size: 1em; padding: 10px 20px; }
   </style>
 </head>
 <body>
   <h2>Odczyt NFC</h2>
-  <p>Przyłóż kartę NFC do telefonu, aby odczytać dane.</p>
+  <button id="startButton">Rozpocznij skanowanie NFC</button>
   <p class="output" id="nfcOutput">Brak odczytu</p>
 
   <script>
-    async function startNFC() {
+    document.getElementById('startButton').addEventListener('click', async () => {
       if ('NDEFReader' in window) { 
         try {
           const ndef = new NDEFReader();
           await ndef.scan();
-          const output = document.getElementById('nfcOutput');
+          document.getElementById('nfcOutput').textContent = 'Czekam na kartę...';
           ndef.onreading = event => {
             let messageData = '';
             const textDecoder = new TextDecoder();
             for (const record of event.message.records) {
-              // dekodowanie tekstu z rekordów NDEF
               if(record.recordType === 'text') {
                 messageData += textDecoder.decode(record.data) + ' ';
               } else {
                 messageData += '[Typ: ' + record.recordType + '] ';
               }
             }
-            output.textContent = messageData.trim() || 'NULL';
+            document.getElementById('nfcOutput').textContent = messageData.trim() || 'NULL';
           };
           ndef.onreadingerror = () => {
             document.getElementById('nfcOutput').textContent = 'NULL';
@@ -42,12 +42,7 @@
       } else {
         document.getElementById('nfcOutput').textContent = 'Web NFC nie jest obsługiwane w tej przeglądarce.';
       }
-    }
-
-    // Uruchom odczyt NFC od razu po załadowaniu strony
-    window.onload = () => {
-      startNFC();
-    }
+    });
   </script>
 </body>
 </html>
