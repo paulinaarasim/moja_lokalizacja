@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Odczyt NFC z przyciskiem</title>
+  <title>Odczyt NFC UID</title>
   <style>
     body { font-family: Arial, sans-serif; padding: 20px; }
     .output { font-size: 1.5em; margin-top: 20px; }
@@ -10,7 +10,7 @@
   </style>
 </head>
 <body>
-  <h2>Odczyt NFC</h2>
+  <h2>Odczyt UID NFC</h2>
   <button id="startButton">Rozpocznij skanowanie NFC</button>
   <p class="output" id="nfcOutput">Brak odczytu</p>
 
@@ -22,22 +22,15 @@
           await ndef.scan();
           document.getElementById('nfcOutput').textContent = 'Czekam na kartę...';
           ndef.onreading = event => {
-            let messageData = '';
-            const textDecoder = new TextDecoder();
-            for (const record of event.message.records) {
-              if(record.recordType === 'text') {
-                messageData += textDecoder.decode(record.data) + ' ';
-              } else {
-                messageData += '[Typ: ' + record.recordType + '] ';
-              }
-            }
-            document.getElementById('nfcOutput').textContent = messageData.trim() || 'NULL';
+            const serial = event.serialNumber || 'NULL';
+            document.getElementById('nfcOutput').textContent = "UID: " + serial;
           };
           ndef.onreadingerror = () => {
             document.getElementById('nfcOutput').textContent = 'NULL';
           };
         } catch(error) {
           document.getElementById('nfcOutput').textContent = 'NULL';
+          console.error("Błąd NFC:", error);
         }
       } else {
         document.getElementById('nfcOutput').textContent = 'Web NFC nie jest obsługiwane w tej przeglądarce.';
