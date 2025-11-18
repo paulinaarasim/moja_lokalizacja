@@ -12,11 +12,10 @@
     crossorigin=""
   />
   <style>
-    /* Dodatkowy styling dla wygody */
     body { font-family: Arial, sans-serif; margin: 0; padding: 16px; }
     #root { width: 100%; }
-    .map-container { height: 500px; width: 100%; }
-    button { padding: 10px 14px; font-size: 14px; }
+    .map-container { height: 500px; width: 100%; border: 1px solid #ddd; }
+    button { padding: 10px 14px; font-size: 14px; margin-right: 8px; }
     .info { margin-top: 8px; color: #333; }
   </style>
 </head>
@@ -31,31 +30,23 @@
   <!-- Babel do obsługi JSX w przeglądarce (tymczasowe; do testów) -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-  <!-- Leaflet i React-Leaflet (w prostym formacie) -->
+  <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
           integrity="sha256-p4Zk1p2bYvYh1p3j5m8W3k6r5lq8Zp1wEm0+E3p8A0Y="
           crossorigin=""></script>
 
-  <!-- React-Leaflet nie ma stabilnego UMD na CDN w prostym uvedzieniu, więc zamiast niego użyjemy prostszej wersji: zrobimy to bez react-leaflet, używając bezpośrednio Leaflet w React. -->
-  <!-- Poniżej masz kompletny kod JS (JSX) bez zależności od react-leaflet. -->
-
   <script type="text/babel">
     const { useEffect, useState, useMemo, useRef } = React;
 
-    // Inicjalizacja ikon Leaflet (dla poprawnego renderu markerów po bundlerze)
-    // Działają też w prostych stronach z CDN.
-    // Konieczne, bo domyślne ikony mogą nie ładować się poprawnie.
+    // Naprawa ikon Leaflet w prostym środowisku
     (function fixLeafletIcons() {
       const L = window.L;
       if (!L) return;
       delete L.Icon.Default.prototype._getIconUrl;
       L.Icon.Default.mergeOptions({
-        iconRetinaUrl:
-          "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-        iconUrl:
-          "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-        shadowUrl:
-          "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+        iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+        iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+        shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
       });
     })();
 
@@ -64,9 +55,24 @@
       const [loading, setLoading] = useState(false);
       const [error, setError] = useState(null);
       const mapRef = useRef(null);
-      const [mapInstance, setMapInstance] = useState(null);
+      const mapInstanceRef = useRef(null);
+      const markerLayerRef = useRef(null);
 
-      // Fetch location
+      // Ustaw mapę po załadowaniu
+      useEffect(() => {
+        const mapEl = mapRef.current;
+        if (mapEl && !mapInstanceRef.current) {
+          const m = window.L.map(mapEl);
+          window.L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            attribution: "&copy; OpenStreetMap contributors",
+          }).addTo(m);
+          // Wstępny widok
+          m.setView([0, 0], 2);
+          mapInstanceRef.current = m;
+        }
+      }, []);
+
+      // Funkcja pobierająca lokalizację
       const fetchLocation = () => {
         setLoading(true);
         setError(null);
@@ -82,9 +88,11 @@
             const { latitude, longitude, accuracy } = pos.coords;
             setPosition({ lat: latitude, lng: longitude, accuracy });
             setLoading(false);
-            // Optional: przeprowadź centrowanie mapy
-            if (mapInstance) {
-              mapInstance.setView([latitude, longitude], 15);
+            // Centruj mapę na pozycji
+            if (mapInstanceRef.current) {
+              mapInstanceRef.current.setView([latitude, longitude], 15);
+              // Zaktualizuj marker
+              updateMarker(latitude, longitude, accuracy);
             }
           },
           (err) => {
@@ -99,60 +107,53 @@
         );
       };
 
-      // Uruchomienie po załadowaniu
-      useEffect(() => {
-        // Utwórz mapę gdy jest gotowy kontener
-        const mapEl = mapRef.current;
-        if (mapEl && !mapInstance) {
-          const L = window.L;
-          const m = L.map(mapEl);
-          // Warstwa z OSM
-          L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-            attribution:
-              "&copy; OpenStreetMap contributors",
-          }).addTo(m);
-          // Ustaw domyślny widok na (0,0) z małym zoomem
-          m.setView([0, 0], 2);
-          setMapInstance(m);
+      // Aktualizacja markera na mapie
+      const updateMarker = (lat, lng, accuracy) => {
+        const m = mapInstanceRef.current;
+        if (!m) return;
+
+        // Usuń poprzednie markery
+        if (markerLayerRef.current) {
+          m.removeLayer(markerLayerRef.current);
+          markerLayerRef.current = null;
         }
-      }, [mapRef.current]); // jednorazowo
 
-      // Po re-renderze z pozycją, ustaw marker
-      useEffect(() => {
-        // gdy masz mapę, dodaj/aktualizuj marker
-        if (!mapInstance || !position) return;
-        // Usuń all existing markers (prosta opcja)
-        mapInstance.eachLayer((layer) => {
-          if (layer.options && layer.options.pane === 'markerPane') {
-            mapInstance.removeLayer(layer);
-          }
-        });
-        const marker = window.L.marker([position.lat, position.lng]).addTo(mapInstance);
-        // Popup z informacją
-        marker.bindPopup(
-          `Twoja pozycja:<br/>Lat: ${position.lat.toFixed(6)}<br/>Lng: ${position.lng.toFixed(6)}<br/>(±${position.accuracy} m)`
-        ).openPopup();
-        // center map na marker
-        mapInstance.setView([position.lat, position.lng], 15);
-      }, [position, mapInstance]);
+        const mk = window.L.marker([lat, lng]).addTo(m);
+        mk.bindPopup(`Twoja pozycja:<br/>Lat: ${lat.toFixed(6)}<br/>Lng: ${lng.toFixed(6)}<br/>(±${accuracy} m)`);
+        mk.openPopup();
+        markerLayerRef.current = mk;
+      };
 
-      // Render
+      // Wersja „Lokalizuj mnie”:
+      // Możemy dodać też automatyczne buforowanie jeśli chcesz
       return (
         <div>
           <div style={{ marginBottom: 8 }}>
             <button onClick={fetchLocation} disabled={loading} aria-label="Pobierz lokalizację">
-              {loading ? 'Szukanie lokalizacji...' : 'Pobierz moją lokalizację'}
+              {loading ? 'Szukanie lokalizacji...' : 'Lokalizuj mnie'}
+            </button>
+            <button onClick={() => {
+              // Reset pozycję i widok
+              setPosition(null);
+              if (mapInstanceRef.current) {
+                mapInstanceRef.current.setView([0, 0], 2);
+              }
+              if (markerLayerRef.current) {
+                mapInstanceRef.current.removeLayer(markerLayerRef.current);
+                markerLayerRef.current = null;
+              }
+            }}>
+              Resetuj mapę
             </button>
             {error && <span style={{ color: 'red', marginLeft: 8 }}>Błąd: {error}</span>}
             {position && (
               <span style={{ marginLeft: 12 }}>
-                Twoja pozycja: {`Lat ${position.lat.toFixed(6)}, Lng ${position.lng.toFixed(6)} (±${position.accuracy}m)`}
+                Pozycja: Lat {position.lat.toFixed(6)}, Lng {position.lng.toFixed(6)} (±{position.accuracy} m)
               </span>
             )}
           </div>
 
-          <div ref={mapRef} className="map-container" style={{ height: '500px', width: '100%', border: '1px solid #ddd' }} />
-          {/* Jeżeli nie ma pozycji, użytkownik zobaczy pustą mapę, a po kliknięciu przycisku - pozycja się pojawi */}
+          <div ref={mapRef} className="map-container" style={{ height: '500px', width: '100%' }} />
         </div>
       );
     }
@@ -167,7 +168,5 @@
 
     ReactDOM.createRoot(document.getElementById('root')).render(<App />);
   </script>
-
-  <!-- Koniec pliku -->
 </body>
 </html>
