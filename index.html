@@ -13,8 +13,8 @@
     crossorigin=""
   />
   <style>
-    #root {
-      height: 100vh;
+    body, html, #root {
+      height: 100%;
       margin: 0;
       padding: 0;
     }
@@ -30,9 +30,11 @@
   <!-- Babel for JSX -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-  <!-- React Leaflet and Leaflet -->
+  <!-- Leaflet -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://unpkg.com/react-leaflet@4.2.1/dist/react-leaflet.min.js"></script>
+
+  <!-- React Leaflet UMD -->
+  <script src="https://unpkg.com/react-leaflet@4.2.1/dist/react-leaflet.umd.min.js"></script>
 
   <script type="text/babel">
     const { useState, useEffect } = React;
@@ -70,7 +72,7 @@
       }
 
       return (
-        <MapContainer center={[location.lat, location.lng]} zoom={13} style={{ height: "100vh", width: "100%" }}>
+        <MapContainer center={[location.lat, location.lng]} zoom={13} style={{ height: "100%", width: "100%" }}>
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -82,6 +84,8 @@
       );
     }
 
-    ReactDOM.createRoot(document.getElementById("root")).render(<GeoMap />);
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<GeoMap />);
   </script>
-</
+</body>
+</html>
