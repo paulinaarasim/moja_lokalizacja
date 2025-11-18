@@ -2,83 +2,172 @@
 <html lang="pl">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Geolokalizacja z mapą</title>
-
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Mapa - moja geolokalizacja</title>
   <!-- Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-sA+e2ZQfQ3r6Q8t3Pdn1dZy5f3f6k6Gd1z6f2R4R2Gg="
+    crossorigin=""
+  />
   <style>
-    html, body, #root {
-      height: 100%;
-      margin: 0;
-      padding: 0;
-    }
+    /* Dodatkowy styling dla wygody */
+    body { font-family: Arial, sans-serif; margin: 0; padding: 16px; }
+    #root { width: 100%; }
+    .map-container { height: 500px; width: 100%; }
+    button { padding: 10px 14px; font-size: 14px; }
+    .info { margin-top: 8px; color: #333; }
   </style>
 </head>
 <body>
+  <h1>Mapa z moją geolokalizacją</h1>
   <div id="root"></div>
 
-  <!-- React i ReactDOM -->
-  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
-  <!-- Babel do JSX -->
+  <!-- React i ReactDOM via CDN -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></nosc></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></nosc></script>
+
+  <!-- Babel do obsługi JSX w przeglądarce (tymczasowe; do testów) -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <!-- Leaflet -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <!-- React Leaflet -->
-  <script src="https://unpkg.com/react-leaflet@4.2.1/dist/react-leaflet.umd.min.js"></script>
+
+  <!-- Leaflet i React-Leaflet (w prostym formacie) -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-p4Zk1p2bYvYh1p3j5m8W3k6r5lq8Zp1wEm0+E3p8A0Y="
+          crossorigin=""></script>
+
+  <!-- React-Leaflet nie ma stabilnego UMD na CDN w prostym uvedzieniu, więc zamiast niego użyjemy prostszej wersji: zrobimy to bez react-leaflet, używając bezpośrednio Leaflet w React. -->
+  <!-- Poniżej masz kompletny kod JS (JSX) bez zależności od react-leaflet. -->
 
   <script type="text/babel">
-    const { useState, useEffect } = React;
-    const { MapContainer, TileLayer, Marker, Popup } = ReactLeaflet;
+    const { useEffect, useState, useMemo, useRef } = React;
 
-    function GeoMap() {
-      const [location, setLocation] = useState(null);
+    // Inicjalizacja ikon Leaflet (dla poprawnego renderu markerów po bundlerze)
+    // Działają też w prostych stronach z CDN.
+    // Konieczne, bo domyślne ikony mogą nie ładować się poprawnie.
+    (function fixLeafletIcons() {
+      const L = window.L;
+      if (!L) return;
+      delete L.Icon.Default.prototype._getIconUrl;
+      L.Icon.Default.mergeOptions({
+        iconRetinaUrl:
+          "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+        iconUrl:
+          "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+        shadowUrl:
+          "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+      });
+    })();
+
+    function GeolocationMap() {
+      const [position, setPosition] = useState(null); // { lat, lng, accuracy }
+      const [loading, setLoading] = useState(false);
       const [error, setError] = useState(null);
+      const mapRef = useRef(null);
+      const [mapInstance, setMapInstance] = useState(null);
 
-      useEffect(() => {
+      // Fetch location
+      const fetchLocation = () => {
+        setLoading(true);
+        setError(null);
+
         if (!navigator.geolocation) {
-          setError("Geolokalizacja nie jest wspierana przez Twoją przeglądarkę");
+          setError('Geolokalizacja nie jest wspierana w tej przeglądarce.');
+          setLoading(false);
           return;
         }
 
         navigator.geolocation.getCurrentPosition(
           (pos) => {
-            setLocation({
-              lat: pos.coords.latitude,
-              lng: pos.coords.longitude,
-            });
+            const { latitude, longitude, accuracy } = pos.coords;
+            setPosition({ lat: latitude, lng: longitude, accuracy });
+            setLoading(false);
+            // Optional: przeprowadź centrowanie mapy
+            if (mapInstance) {
+              mapInstance.setView([latitude, longitude], 15);
+            }
           },
           (err) => {
-            setError("Błąd: " + err.message);
+            setError(err.message);
+            setLoading(false);
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0,
           }
         );
-      }, []);
+      };
 
-      if (error) {
-        return <div style={{ padding: '20px', fontSize: '1.2em' }}>{error}</div>;
-      }
+      // Uruchomienie po załadowaniu
+      useEffect(() => {
+        // Utwórz mapę gdy jest gotowy kontener
+        const mapEl = mapRef.current;
+        if (mapEl && !mapInstance) {
+          const L = window.L;
+          const m = L.map(mapEl);
+          // Warstwa z OSM
+          L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            attribution:
+              "&copy; OpenStreetMap contributors",
+          }).addTo(m);
+          // Ustaw domyślny widok na (0,0) z małym zoomem
+          m.setView([0, 0], 2);
+          setMapInstance(m);
+        }
+      }, [mapRef.current]); // jednorazowo
 
-      if (!location) {
-        return <div style={{ padding: '20px', fontSize: '1.2em' }}>Ładowanie lokalizacji...</div>;
-      }
+      // Po re-renderze z pozycją, ustaw marker
+      useEffect(() => {
+        // gdy masz mapę, dodaj/aktualizuj marker
+        if (!mapInstance || !position) return;
+        // Usuń all existing markers (prosta opcja)
+        mapInstance.eachLayer((layer) => {
+          if (layer.options && layer.options.pane === 'markerPane') {
+            mapInstance.removeLayer(layer);
+          }
+        });
+        const marker = window.L.marker([position.lat, position.lng]).addTo(mapInstance);
+        // Popup z informacją
+        marker.bindPopup(
+          `Twoja pozycja:<br/>Lat: ${position.lat.toFixed(6)}<br/>Lng: ${position.lng.toFixed(6)}<br/>(±${position.accuracy} m)`
+        ).openPopup();
+        // center map na marker
+        mapInstance.setView([position.lat, position.lng], 15);
+      }, [position, mapInstance]);
 
+      // Render
       return (
-        <MapContainer center={[location.lat, location.lng]} zoom={13} style={{ height: "100%", width: "100%" }}>
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
-          <Marker position={[location.lat, location.lng]}>
-            <Popup>Jesteś tutaj</Popup>
-          </Marker>
-        </MapContainer>
+        <div>
+          <div style={{ marginBottom: 8 }}>
+            <button onClick={fetchLocation} disabled={loading} aria-label="Pobierz lokalizację">
+              {loading ? 'Szukanie lokalizacji...' : 'Pobierz moją lokalizację'}
+            </button>
+            {error && <span style={{ color: 'red', marginLeft: 8 }}>Błąd: {error}</span>}
+            {position && (
+              <span style={{ marginLeft: 12 }}>
+                Twoja pozycja: {`Lat ${position.lat.toFixed(6)}, Lng ${position.lng.toFixed(6)} (±${position.accuracy}m)`}
+              </span>
+            )}
+          </div>
+
+          <div ref={mapRef} className="map-container" style={{ height: '500px', width: '100%', border: '1px solid #ddd' }} />
+          {/* Jeżeli nie ma pozycji, użytkownik zobaczy pustą mapę, a po kliknięciu przycisku - pozycja się pojawi */}
+        </div>
       );
     }
 
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<GeoMap />);
+    function App() {
+      return (
+        <div style={{ padding: 8 }}>
+          <GeolocationMap />
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
   </script>
+
+  <!-- Koniec pliku -->
 </body>
 </html>
